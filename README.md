@@ -1,8 +1,18 @@
-# Welcome to your Expo app 👋
+# ShelfLife 🫑🍢
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+* Assisting in lessening overconsumption
+* __Features__:
+   * User Accounts
+   * Circles
+   * Grocery Lists
+   * Recipes
+   * Pantry Tracker
+   * Sustainability Insights
+ 
 
-## Get started
+## Running Expo
+
+* [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
 1. Install dependencies
 
