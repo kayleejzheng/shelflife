@@ -1,6 +1,6 @@
 # ShelfLife 🫑🍢
 
-* Assisting in lessening overconsumption
+* Assisting in lessening overconsumption, tracking spending, and increasing sustainability
 * __Features__:
    * User Accounts
    * Circles
