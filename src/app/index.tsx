@@ -1,98 +1,117 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import type { Session } from '@supabase/supabase-js';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+import { useFonts } from 'expo-font';
+import { CaveatBrush_400Regular } from '@expo-google-fonts/caveat-brush';
+import { Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold } from '@expo-google-fonts/nunito';
+import { supabase } from '../../lib/supabase';
+import { AppProvider, Route, RouteName, Tab, useApp } from '../../lib/app';
+import { onReminderTap } from '../../lib/notifications';
+import { colors } from '../../lib/theme';
+import TabBar from '../../components/TabBar';
+import LoginScreen from '../../screens/LoginScreen';
+import OnboardingScreen from '../../screens/OnboardingScreen';
+import InventoryScreen from '../../screens/InventoryScreen';
+import CheckInScreen from '../../screens/CheckInScreen';
+import ScanScreen from '../../screens/ScanScreen';
+import MealsScreen from '../../screens/MealsScreen';
+import RecipeScreen from '../../screens/RecipeScreen';
+import CookingScreen from '../../screens/CookingScreen';
+import GroceryScreen from '../../screens/GroceryScreen';
+import ProfileScreen from '../../screens/ProfileScreen';
+import ReviewScreen from '../../screens/ReviewScreen';
+import SuggestionsScreen from '../../screens/SuggestionsScreen';
+import CircleScreen from '../../screens/CircleScreen';
+import SettingsScreen from '../../screens/SettingsScreen';
+import EditProfileScreen from '../../screens/EditProfileScreen';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+// Screens that cover the tab bar (matches the Figma frames)
+const FULL_SCREEN: RouteName[] = ['settings', 'editProfile', 'checkin', 'review', 'recipe', 'cooking'];
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+function Loading() {
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
+    <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
+      <ActivityIndicator color={colors.green} />
+    </View>
   );
 }
 
-export default function HomeScreen() {
+export default function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [tab, setTab] = useState<Tab>('pantry');
+  const [stack, setStack] = useState<Route[]>([]);
+  const [fontsLoaded] = useFonts({ CaveatBrush_400Regular, Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold });
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthReady(true);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      if (!newSession) {
+        setStack([]);
+        setTab('pantry');
+      }
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const push = useCallback((name: RouteName, params?: unknown) => setStack((s) => [...s, { name, params }]), []);
+  const pop = useCallback(() => setStack((s) => s.slice(0, -1)), []);
+  const goTab = useCallback((t: Tab) => {
+    setStack([]);
+    setTab(t);
+  }, []);
+
+  // Tapping a reminder notification opens the right screen
+  useEffect(
+    () =>
+      onReminderTap((screen) => {
+        if (screen === 'checkin') {
+          setTab('pantry');
+          setStack([{ name: 'checkin' }]);
+        } else goTab('pantry');
+      }),
+    [goTab]
+  );
+
+  if (!fontsLoaded || !authReady) return <Loading />;
+  if (!session) return <LoginScreen />;
+
+  const top = stack[stack.length - 1];
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+    <AppProvider session={session} push={push} pop={pop} goTab={goTab} params={top?.params}>
+      <Main tab={tab} top={top} goTab={goTab} />
+    </AppProvider>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-});
+function Main({ tab, top, goTab }: { tab: Tab; top?: Route; goTab: (t: Tab) => void }) {
+  const { loaded, profile } = useApp();
+  if (!loaded) return <Loading />;
+  if (profile && !profile.onboarded) return <OnboardingScreen />;
+
+  let content;
+  if (top?.name === 'circle') content = <CircleScreen />;
+  else if (top?.name === 'settings') content = <SettingsScreen />;
+  else if (top?.name === 'editProfile') content = <EditProfileScreen />;
+  else if (top?.name === 'checkin') content = <CheckInScreen />;
+  else if (top?.name === 'review') content = <ReviewScreen />;
+  else if (top?.name === 'suggestions') content = <SuggestionsScreen />;
+  else if (top?.name === 'recipe') content = <RecipeScreen key={JSON.stringify(top.params)} />;
+  else if (top?.name === 'cooking') content = <CookingScreen />;
+  else if (tab === 'scan') content = <ScanScreen onSaved={() => goTab('pantry')} />;
+  else if (tab === 'meals') content = <MealsScreen />;
+  else if (tab === 'grocery') content = <GroceryScreen />;
+  else if (tab === 'profile') content = <ProfileScreen />;
+  else content = <InventoryScreen />;
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1 }}>{content}</View>
+      {!(top && FULL_SCREEN.includes(top.name)) && <TabBar active={tab} onChange={goTab} />}
+    </View>
+  );
+}
