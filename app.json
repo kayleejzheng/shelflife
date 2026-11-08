@@ -1,5 +1,6 @@
 {
   "expo": {
+    "owner": "shelflife-convergent",
     "name": "shelflife",
     "slug": "shelflife",
     "version": "1.0.0",
